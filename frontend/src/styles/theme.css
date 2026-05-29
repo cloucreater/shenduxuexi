@@ -1,0 +1,176 @@
+/* ═══════════════════════════════════════════════════════════
+   主题变量 — Light / Dark Mode
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Dark Mode (default) ── */
+:root,
+[data-theme="dark"] {
+  /* Green palette */
+  --green-50: #e8f5e9;
+  --green-100: #c8e6c9;
+  --green-200: #a5d6a7;
+  --green-300: #81c784;
+  --green-400: #66bb6a;
+  --green-500: #4caf50;
+  --green-600: #43a047;
+  --green-700: #388e3c;
+  --green-800: #2e7d32;
+  --green-900: #1b5e20;
+  --green-950: #0a2e1c;
+
+  /* Semantic primary */
+  --color-primary: #4caf50;
+  --color-primary-light: #81c784;
+  --color-primary-dark: #2e7d32;
+  --color-accent: #66bb6a;
+  --color-accent-glow: rgba(76, 175, 80, 0.15);
+
+  /* Surface / Glass */
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-hover: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-hover: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  --glass-shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.25);
+
+  /* Typography */
+  --text-primary: rgba(255, 255, 255, 0.93);
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-tertiary: rgba(255, 255, 255, 0.4);
+  --text-muted: rgba(255, 255, 255, 0.3);
+
+  /* Background */
+  --bg-deep: #0a2e1c;
+  --bg-mid: #1a5f3a;
+  --bg-gradient: linear-gradient(135deg, #0a2e1c 0%, #0f3d24 25%, #1a5f3a 50%, #0f4528 75%, #0a2e1c 100%);
+
+  /* Top bar */
+  --topbar-bg: rgba(10, 40, 20, 0.85);
+  --topbar-border: rgba(255, 255, 255, 0.06);
+
+  /* Section card */
+  --section-bg: rgba(255, 255, 255, 0.04);
+  --section-border: rgba(255, 255, 255, 0.06);
+  --section-hover-bg: rgba(255, 255, 255, 0.07);
+
+  /* Status colors */
+  --color-success: #4caf50;
+  --color-success-bg: rgba(76, 175, 80, 0.15);
+  --color-warning: #ff9800;
+  --color-warning-bg: rgba(255, 152, 0, 0.15);
+  --color-danger: #f44336;
+  --color-danger-bg: rgba(244, 67, 54, 0.15);
+  --color-info: #2196f3;
+  --color-info-bg: rgba(33, 150, 243, 0.15);
+
+  /* Body overlay */
+  --body-overlay-opacity: 0.06;
+  --body-photo-filter: saturate(0.8) brightness(1.1);
+
+  /* Form inputs */
+  --form-input-bg: rgba(255, 255, 255, 0.06);
+  --form-input-border: rgba(255, 255, 255, 0.1);
+  --form-input-focus-bg: rgba(255, 255, 255, 0.1);
+
+  /* Upload zone */
+  --upload-zone-border: rgba(255, 255, 255, 0.15);
+  --upload-zone-bg: rgba(255, 255, 255, 0.03);
+
+  /* Modal */
+  --modal-bg: linear-gradient(135deg, rgba(15, 50, 30, 0.98), rgba(20, 60, 35, 0.95));
+  --modal-border: rgba(255, 255, 255, 0.1);
+
+  /* Body grid dots */
+  --body-grid-color: rgba(255, 255, 255, 0.03);
+
+  /* Select dropdown */
+  --select-option-bg: #1a3a25;
+  --select-option-color: #fff;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ── Light Mode ── */
+[data-theme="light"] {
+  /* Keep green palette */
+  --green-50: #e8f5e9;
+  --green-100: #c8e6c9;
+  --green-200: #a5d6a7;
+  --green-300: #81c784;
+  --green-400: #66bb6a;
+  --green-500: #4caf50;
+  --green-600: #43a047;
+  --green-700: #388e3c;
+  --green-800: #2e7d32;
+  --green-900: #1b5e20;
+  --green-950: #0a2e1c;
+
+  /* Semantic primary */
+  --color-primary: #388e3c;
+  --color-primary-light: #66bb6a;
+  --color-primary-dark: #1b5e20;
+  --color-accent: #4caf50;
+  --color-accent-glow: rgba(56, 142, 60, 0.1);
+
+  /* Surface / Glass — white and light */
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-bg-hover: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-border-hover: rgba(56, 142, 60, 0.2);
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --glass-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.06), 0 8px 28px rgba(0, 0, 0, 0.06);
+
+  /* Typography — dark text */
+  --text-primary: #1a1a1a;
+  --text-secondary: #525252;
+  --text-tertiary: #737373;
+  --text-muted: #a3a3a3;
+
+  /* Background — light green */
+  --bg-deep: #e8f5e9;
+  --bg-mid: #c8e6c9;
+  --bg-gradient: linear-gradient(135deg, #f1f8f2 0%, #e8f5e9 25%, #f5faf6 50%, #eaf5ec 75%, #f0f7f1 100%);
+
+  /* Top bar */
+  --topbar-bg: rgba(255, 255, 255, 0.85);
+  --topbar-border: rgba(0, 0, 0, 0.06);
+
+  /* Section card */
+  --section-bg: rgba(0, 0, 0, 0.02);
+  --section-border: rgba(0, 0, 0, 0.05);
+  --section-hover-bg: rgba(0, 0, 0, 0.04);
+
+  /* Status colors */
+  --color-success: #2e7d32;
+  --color-success-bg: rgba(46, 125, 50, 0.1);
+  --color-warning: #e65100;
+  --color-warning-bg: rgba(230, 81, 0, 0.08);
+  --color-danger: #c62828;
+  --color-danger-bg: rgba(198, 40, 40, 0.08);
+  --color-info: #1565c0;
+  --color-info-bg: rgba(21, 101, 192, 0.08);
+
+  /* Body overlay */
+  --body-overlay-opacity: 0.03;
+  --body-photo-filter: saturate(0.6) brightness(1.4);
+
+  /* Form inputs */
+  --form-input-bg: rgba(0, 0, 0, 0.03);
+  --form-input-border: rgba(0, 0, 0, 0.12);
+  --form-input-focus-bg: rgba(0, 0, 0, 0.05);
+
+  /* Upload zone */
+  --upload-zone-border: rgba(0, 0, 0, 0.12);
+  --upload-zone-bg: rgba(0, 0, 0, 0.015);
+
+  /* Modal */
+  --modal-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 252, 248, 0.96));
+  --modal-border: rgba(0, 0, 0, 0.08);
+
+  /* Body grid dots */
+  --body-grid-color: rgba(0, 0, 0, 0.03);
+
+  /* Select dropdown */
+  --select-option-bg: #fff;
+  --select-option-color: #1a1a1a;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(0,0,0,0.4)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}

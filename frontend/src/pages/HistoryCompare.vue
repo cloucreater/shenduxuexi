@@ -1,291 +1,438 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
+import api from '@/api'
 
-// 历史记录列表
-const historyRecords = ref([
-  {
-    id: 1,
-    date: '2024-03-15',
-    type: '图片',
-    image: 'https://via.placeholder.com/150',
-    result: '白粉病',
-    count: 5,
-    severity: '中等'
-  },
-  {
-    id: 2,
-    date: '2024-03-10',
-    type: '图片',
-    image: 'https://via.placeholder.com/150',
-    result: '叶斑病',
-    count: 3,
-    severity: '轻度'
-  },
-  {
-    id: 3,
-    date: '2024-03-05',
-    type: '视频',
-    image: 'https://via.placeholder.com/150',
-    result: '锈病',
-    count: 12,
-    severity: '严重'
-  },
-  {
-    id: 4,
-    date: '2024-02-28',
-    type: '图片',
-    image: 'https://via.placeholder.com/150',
-    result: '健康',
-    count: 0,
-    severity: '-'
-  }
-])
+// History records from API
+const historyRecords = ref<any[]>([])
+const loading = ref(true)
 
-// 选中的记录进行对比
+// Selection
 const selectedRecords = ref<number[]>([])
 const comparisonResult = ref<any>(null)
+const comparing = ref(false)
 
-// 选择记录
+// Charts
+let comparisonChart: echarts.ECharts | null = null
+
+// Disease labels
+const DISEASE_LABELS: Record<string, string> = {
+  healthy: '健康', leaf_spot: '叶斑病', rust: '锈病',
+  powdery_mildew: '白粉病', early_blight: '早疫病', late_blight: '晚疫病',
+  bacterial_spot: '细菌性斑点病', leaf_mold: '叶霉病', septoria: '斑枯病'
+}
+
+function getDisplayLabel(key: string): string {
+  return DISEASE_LABELS[key] || key
+}
+
+async function loadHistory() {
+  try {
+    const res = await api.get('/history?limit=20')
+    const records = res.data.records || []
+    historyRecords.value = records.map((r: any) => {
+      const diseaseDetections = (r.detections || []).filter((d: any) =>
+        d.label !== 'Healthy' && d.label !== '健康' && d.label_en !== 'healthy'
+      )
+      const mainDisease = diseaseDetections.length > 0
+        ? diseaseDetections.sort((a: any, b: any) => b.confidence - a.confidence)[0]
+        : null
+
+      return {
+        ...r,
+        _diseaseLabel: mainDisease ? mainDisease.label : '健康',
+        _diseaseCount: diseaseDetections.length,
+        _healthyCount: (r.detections || []).length - diseaseDetections.length,
+        _severity: diseaseDetections.length > 3 ? '严重' : diseaseDetections.length > 1 ? '中等' : diseaseDetections.length > 0 ? '轻度' : '健康',
+        _imageUrl: r.result_image || r.image_url
+      }
+    })
+  } catch {
+    historyRecords.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
 function toggleSelect(id: number) {
-  const index = selectedRecords.value.indexOf(id)
-  if (index > -1) {
-    selectedRecords.value.splice(index, 1)
+  const idx = selectedRecords.value.indexOf(id)
+  if (idx > -1) {
+    selectedRecords.value.splice(idx, 1)
   } else if (selectedRecords.value.length < 2) {
     selectedRecords.value.push(id)
   }
 }
 
-// 进行对比
-function compareRecords() {
-  if (selectedRecords.value.length !== 2) {
-    alert('请选择两条记录进行对比')
-    return
-  }
+async function compareRecords() {
+  if (selectedRecords.value.length !== 2) return
 
-  const record1 = historyRecords.value.find(r => r.id === selectedRecords.value[0])
-  const record2 = historyRecords.value.find(r => r.id === selectedRecords.value[1])
+  const r1 = historyRecords.value.find(r => r.id === selectedRecords.value[0])
+  const r2 = historyRecords.value.find(r => r.id === selectedRecords.value[1])
+  if (!r1 || !r2) return
 
-  if (!record1 || !record2) return
+  comparing.value = true
 
-  // 模拟对比结果
-  comparisonResult.value = {
-    record1: {
-      date: record1.date,
-      type: record1.type,
-      result: record1.result,
-      count: record1.count,
-      severity: record1.severity
-    },
-    record2: {
-      date: record2.date,
-      type: record2.type,
-      result: record2.result,
-      count: record2.count,
-      severity: record2.severity
-    },
-    changes: {
-      countChange: record2.count - record1.count,
-      countChangePercent: record1.count > 0 ? ((record2.count - record1.count) / record1.count * 100).toFixed(1) : '0',
-      effectiveness: record1.count > 0 && record2.count < record1.count ? '有效' : '待观察'
+  try {
+    // Try backend comparison API
+    const res = await api.post('/history/compare', {
+      period1: { start: r1.created_at?.split(' ')[0], end: r1.created_at?.split(' ')[0] },
+      period2: { start: r2.created_at?.split(' ')[0], end: r2.created_at?.split(' ')[0] },
+      comparison_type: 'disease'
+    })
+
+    comparisonResult.value = {
+      record1: {
+        date: r1.created_at?.split(' ')[0],
+        disease: r1._diseaseLabel,
+        diseaseCount: r1._diseaseCount,
+        healthyCount: r1._healthyCount,
+        severity: r1._severity,
+        image: r1._imageUrl
+      },
+      record2: {
+        date: r2.created_at?.split(' ')[0],
+        disease: r2._diseaseLabel,
+        diseaseCount: r2._diseaseCount,
+        healthyCount: r2._healthyCount,
+        severity: r2._severity,
+        image: r2._imageUrl
+      },
+      deepAnalysis: res.data?.deep_analysis,
+      categories: res.data?.categories || [],
+      period1Values: res.data?.period1_values || [],
+      period2Values: res.data?.period2_values || [],
     }
+
+    await nextTick()
+    renderComparisonChart()
+  } catch {
+    // Fallback to local comparison
+    comparisonResult.value = {
+      record1: {
+        date: r1.created_at?.split(' ')[0],
+        disease: r1._diseaseLabel,
+        diseaseCount: r1._diseaseCount,
+        healthyCount: r1._healthyCount,
+        severity: r1._severity,
+        image: r1._imageUrl
+      },
+      record2: {
+        date: r2.created_at?.split(' ')[0],
+        disease: r2._diseaseLabel,
+        diseaseCount: r2._diseaseCount,
+        healthyCount: r2._healthyCount,
+        severity: r2._severity,
+        image: r2._imageUrl
+      },
+      changes: {
+        diseaseChange: r2._diseaseCount - r1._diseaseCount,
+        changePercent: r1._diseaseCount > 0
+          ? ((r2._diseaseCount - r1._diseaseCount) / r1._diseaseCount * 100).toFixed(1)
+          : '0',
+        effectiveness: r2._diseaseCount < r1._diseaseCount ? '有效' : r2._diseaseCount === r1._diseaseCount ? '持平' : '待观察'
+      }
+    }
+  } finally {
+    comparing.value = false
   }
 }
 
-// 清除选择
 function clearSelection() {
   selectedRecords.value = []
   comparisonResult.value = null
-}
-
-// 获取严重程度颜色
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case '严重': return 'text-red-600 bg-red-100'
-    case '中等': return 'text-orange-600 bg-orange-100'
-    case '轻度': return 'text-yellow-600 bg-yellow-100'
-    default: return 'text-green-600 bg-green-100'
+  if (comparisonChart) {
+    comparisonChart.dispose()
+    comparisonChart = null
   }
 }
+
+function renderComparisonChart() {
+  const el = document.getElementById('comparisonChart')
+  if (!el || !comparisonResult.value?.categories?.length) return
+  if (comparisonChart) comparisonChart.dispose()
+
+  comparisonChart = echarts.init(el)
+  comparisonChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderColor: '#e5e7eb',
+      textStyle: { color: '#171717', fontSize: 12 }
+    },
+    legend: {
+      data: ['记录 1', '记录 2'],
+      bottom: 0,
+      textStyle: { fontSize: 11, color: '#737373' }
+    },
+    grid: { left: 48, right: 24, bottom: 40, top: 16 },
+    xAxis: {
+      type: 'category',
+      data: comparisonResult.value.categories.map((c: string) => getDisplayLabel(c)),
+      axisLabel: { color: '#737373', fontSize: 10 },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: 'rgba(0,0,0,0.04)' } },
+      axisLabel: { color: '#737373', fontSize: 11 }
+    },
+    series: [
+      {
+        name: '记录 1',
+        type: 'bar',
+        data: comparisonResult.value.period1Values,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#3b82f6' }, { offset: 1, color: '#93c5fd' }
+          ]),
+          borderRadius: [6, 6, 0, 0]
+        },
+        barWidth: '35%',
+        barGap: '20%'
+      },
+      {
+        name: '记录 2',
+        type: 'bar',
+        data: comparisonResult.value.period2Values,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#16a34a' }, { offset: 1, color: '#86efac' }
+          ]),
+          borderRadius: [6, 6, 0, 0]
+        },
+        barWidth: '35%'
+      }
+    ]
+  })
+}
+
+function getSeverityColor(severity: string): string {
+  const map: Record<string, string> = {
+    '严重': 'var(--color-danger)',
+    '中等': 'var(--color-warning)',
+    '轻度': 'var(--color-info)',
+    '健康': 'var(--color-success)'
+  }
+  return map[severity] || 'var(--text-muted)'
+}
+
+function getSeverityBg(severity: string): string {
+  const map: Record<string, string> = {
+    '严重': 'var(--color-danger-bg)',
+    '中等': 'var(--color-warning-bg)',
+    '轻度': 'var(--color-info-bg)',
+    '健康': 'var(--color-success-bg)'
+  }
+  return map[severity] || 'rgba(0,0,0,0.04)'
+}
+
+onMounted(() => {
+  loadHistory()
+})
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
-      <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <span class="text-yellow-800 text-sm">
-        <strong>注意：</strong>当前显示的是模拟数据，实际数据将在连接真实后端后自动更新。
-      </span>
+    <!-- Page Header -->
+    <div class="page-header animate-fade-down">
+      <h2>🔄 历史对比</h2>
+      <p>对比不同时期的检测结果，分析病害变化趋势和防治效果</p>
     </div>
-    
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 历史记录列表 -->
-      <div class="bg-white rounded-xl p-6 shadow-md">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-bold text-gray-800">历史检测记录</h3>
-          <span class="text-sm text-gray-500">
-            已选择 {{ selectedRecords.length }}/2 条
+      <!-- History Records List -->
+      <div class="glass-card animate-fade-up stagger-1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="font-weight:700;color:var(--text-primary);font-size:1.05rem;">📋 历史检测记录</h3>
+          <span style="font-size:0.8rem;color:var(--text-muted);">
+            已选 {{ selectedRecords.length }}/2 条
           </span>
         </div>
 
-        <div class="space-y-4">
+        <!-- Loading -->
+        <div v-if="loading" class="space-y-3">
+          <div v-for="i in 4" :key="i" class="skeleton" style="height:88px;"></div>
+        </div>
+
+        <!-- Records -->
+        <div v-else-if="historyRecords.length > 0" class="space-y-3" style="max-height:520px;overflow-y:auto;">
           <div
             v-for="record in historyRecords"
             :key="record.id"
             @click="toggleSelect(record.id)"
-            :class="[
-              'p-4 rounded-xl border-2 cursor-pointer transition-all',
-              selectedRecords.includes(record.id)
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-200 hover:border-gray-300'
-            ]"
+            :class="['section-card', { 'card-accent': selectedRecords.includes(record.id) }]"
+            style="cursor:pointer;padding:16px;transition:all 0.2s;"
+            :style="selectedRecords.includes(record.id) ? 'border-color:var(--color-primary);background:var(--color-primary-bg);' : ''"
           >
-            <div class="flex items-center gap-4">
-              <div class="relative">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <!-- Image Preview -->
+              <div style="width:72px;height:72px;border-radius:10px;overflow:hidden;flex-shrink:0;background:rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:center;">
                 <img
-                  :src="record.image"
+                  v-if="record._imageUrl"
+                  :src="record._imageUrl"
                   alt="检测图片"
-                  class="w-20 h-20 rounded-lg object-cover"
+                  style="width:100%;height:100%;object-fit:cover;"
+                  @error="($event.target as HTMLImageElement).style.display='none'"
                 />
-                <div
-                  v-if="selectedRecords.includes(record.id)"
-                  class="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"
-                >
-                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
+                <svg v-if="!record._imageUrl" class="w-8 h-8" style="color:var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
               </div>
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="font-medium text-gray-800">{{ record.result }}</span>
-                  <span :class="['px-2 py-0.5 rounded text-xs font-medium', getSeverityColor(record.severity)]">
-                    {{ record.severity }}
+
+              <!-- Info -->
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <span style="font-weight:600;color:var(--text-primary);">{{ record._diseaseLabel }}</span>
+                  <span
+                    style="padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:600;"
+                    :style="{ background: getSeverityBg(record._severity), color: getSeverityColor(record._severity) }"
+                  >
+                    {{ record._severity }}
                   </span>
                 </div>
-                <p class="text-sm text-gray-500">
-                  {{ record.type }} · {{ record.date }}
-                </p>
-                <p class="text-sm text-gray-600 mt-1">
-                  检测数量：<span class="font-bold">{{ record.count }}</span>
-                </p>
+                <p style="font-size:0.8rem;color:var(--text-muted);">{{ record.created_at }}</p>
+                <div style="display:flex;gap:16px;margin-top:4px;">
+                  <span style="font-size:0.78rem;color:var(--text-secondary);">
+                    病害: <strong style="color:var(--color-danger);">{{ record._diseaseCount }}</strong>
+                  </span>
+                  <span style="font-size:0.78rem;color:var(--text-secondary);">
+                    健康: <strong style="color:var(--color-success);">{{ record._healthyCount }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Check indicator -->
+              <div
+                style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;"
+                :style="selectedRecords.includes(record.id)
+                  ? 'background:var(--color-primary);color:#fff;'
+                  : 'border:2px solid var(--surface-border);color:transparent;'"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 操作按钮 -->
-        <div class="mt-6 flex gap-4">
+        <!-- Empty -->
+        <div v-else style="text-align:center;padding:48px 20px;">
+          <div style="font-size:3rem;margin-bottom:12px;">📭</div>
+          <p style="color:var(--text-secondary);">暂无检测记录</p>
+          <p style="color:var(--text-muted);font-size:0.85rem;">请先进行图片检测</p>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:12px;margin-top:16px;">
           <button
             @click="compareRecords"
-            :disabled="selectedRecords.length !== 2"
-            class="flex-1 bg-green-500 text-white py-3 rounded-lg font-bold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="selectedRecords.length !== 2 || comparing"
+            class="btn btn-primary"
+            style="flex:1;"
           >
-            对比分析
+            {{ comparing ? '⏳ 分析中...' : '📊 对比分析' }}
           </button>
-          <button
-            @click="clearSelection"
-            class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-          >
+          <button @click="clearSelection" class="btn btn-outline">
             清除选择
           </button>
         </div>
       </div>
 
-      <!-- 对比结果 -->
-      <div class="space-y-6">
-        <!-- 对比结果展示 -->
-        <div v-if="comparisonResult" class="bg-white rounded-xl p-6 shadow-md">
-          <h3 class="text-lg font-bold text-gray-800 mb-4">对比结果</h3>
+      <!-- Comparison Result -->
+      <div class="animate-fade-up stagger-2">
+        <!-- Result Display -->
+        <div v-if="comparisonResult" class="glass-card space-y-4">
+          <h3 style="font-weight:700;color:var(--text-primary);font-size:1.05rem;">📊 对比结果</h3>
 
-          <!-- 两条记录对比 -->
-          <div class="grid grid-cols-2 gap-4 mb-6">
-            <!-- 记录1 -->
-            <div class="bg-blue-50 rounded-xl p-4">
-              <div class="text-sm text-blue-600 mb-2">记录 1</div>
-              <p class="font-bold text-gray-800">{{ comparisonResult.record1.result }}</p>
-              <p class="text-sm text-gray-500">{{ comparisonResult.record1.date }}</p>
-              <p class="text-2xl font-bold text-blue-600 mt-2">
-                {{ comparisonResult.record1.count }}
-                <span class="text-sm font-normal text-gray-500">检测数量</span>
-              </p>
+          <!-- Two Records Side by Side -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div style="padding:16px;background:var(--color-info-bg);border-radius:12px;text-align:center;">
+              <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">记录 1</p>
+              <p style="font-weight:700;color:var(--text-primary);font-size:1.05rem;">{{ comparisonResult.record1.disease }}</p>
+              <p style="font-size:0.75rem;color:var(--text-muted);">{{ comparisonResult.record1.date }}</p>
+              <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
+                <div>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-danger);">{{ comparisonResult.record1.diseaseCount }}</p>
+                  <p style="font-size:0.7rem;color:var(--text-muted);">病害</p>
+                </div>
+                <div>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-success);">{{ comparisonResult.record1.healthyCount }}</p>
+                  <p style="font-size:0.7rem;color:var(--text-muted);">健康</p>
+                </div>
+              </div>
             </div>
-
-            <!-- 记录2 -->
-            <div class="bg-green-50 rounded-xl p-4">
-              <div class="text-sm text-green-600 mb-2">记录 2</div>
-              <p class="font-bold text-gray-800">{{ comparisonResult.record2.result }}</p>
-              <p class="text-sm text-gray-500">{{ comparisonResult.record2.date }}</p>
-              <p class="text-2xl font-bold text-green-600 mt-2">
-                {{ comparisonResult.record2.count }}
-                <span class="text-sm font-normal text-gray-500">检测数量</span>
-              </p>
+            <div style="padding:16px;background:var(--color-success-bg);border-radius:12px;text-align:center;">
+              <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">记录 2</p>
+              <p style="font-weight:700;color:var(--text-primary);font-size:1.05rem;">{{ comparisonResult.record2.disease }}</p>
+              <p style="font-size:0.75rem;color:var(--text-muted);">{{ comparisonResult.record2.date }}</p>
+              <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
+                <div>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-danger);">{{ comparisonResult.record2.diseaseCount }}</p>
+                  <p style="font-size:0.7rem;color:var(--text-muted);">病害</p>
+                </div>
+                <div>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-success);">{{ comparisonResult.record2.healthyCount }}</p>
+                  <p style="font-size:0.7rem;color:var(--text-muted);">健康</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 变化统计 -->
-          <div class="bg-gray-50 rounded-xl p-4">
-            <h4 class="font-medium text-gray-800 mb-3">变化分析</h4>
+          <!-- Changes Analysis -->
+          <div v-if="comparisonResult.changes" style="padding:16px;background:rgba(0,0,0,0.015);border-radius:12px;">
+            <h4 style="font-weight:600;color:var(--text-primary);margin-bottom:10px;">📈 变化分析</h4>
             <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-gray-600">数量变化</span>
-                <span
-                  :class="[
-                    'font-bold',
-                    comparisonResult.changes.countChange > 0 ? 'text-red-600' :
-                    comparisonResult.changes.countChange < 0 ? 'text-green-600' : 'text-gray-600'
-                  ]"
-                >
-                  {{ comparisonResult.changes.countChange > 0 ? '+' : '' }}{{ comparisonResult.changes.countChange }}
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-secondary);font-size:0.85rem;">数量变化</span>
+                <span style="font-weight:700;" :style="{ color: comparisonResult.changes.diseaseChange > 0 ? 'var(--color-danger)' : comparisonResult.changes.diseaseChange < 0 ? 'var(--color-success)' : 'var(--text-secondary)' }">
+                  {{ comparisonResult.changes.diseaseChange > 0 ? '+' : '' }}{{ comparisonResult.changes.diseaseChange }}
                 </span>
               </div>
-              <div class="flex items-center justify-between">
-                <span class="text-gray-600">变化百分比</span>
-                <span
-                  :class="[
-                    'font-bold',
-                    parseFloat(comparisonResult.changes.countChangePercent) > 0 ? 'text-red-600' :
-                    parseFloat(comparisonResult.changes.countChangePercent) < 0 ? 'text-green-600' : 'text-gray-600'
-                  ]"
-                >
-                  {{ parseFloat(comparisonResult.changes.countChangePercent) > 0 ? '+' : '' }}{{ comparisonResult.changes.countChangePercent }}%
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-secondary);font-size:0.85rem;">变化率</span>
+                <span style="font-weight:700;" :style="{ color: parseFloat(comparisonResult.changes.changePercent) > 0 ? 'var(--color-danger)' : parseFloat(comparisonResult.changes.changePercent) < 0 ? 'var(--color-success)' : 'var(--text-secondary)' }">
+                  {{ parseFloat(comparisonResult.changes.changePercent) > 0 ? '+' : '' }}{{ comparisonResult.changes.changePercent }}%
                 </span>
               </div>
-              <div class="flex items-center justify-between">
-                <span class="text-gray-600">防治效果</span>
-                <span
-                  :class="[
-                    'px-3 py-1 rounded-full text-sm font-bold',
-                    comparisonResult.changes.effectiveness === '有效' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                  ]"
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="color:var(--text-secondary);font-size:0.85rem;">效果评估</span>
+                <span style="padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;"
+                  :style="{
+                    background: comparisonResult.changes.effectiveness === '有效' ? 'var(--color-success-bg)' : comparisonResult.changes.effectiveness === '持平' ? 'var(--color-info-bg)' : 'var(--color-warning-bg)',
+                    color: comparisonResult.changes.effectiveness === '有效' ? 'var(--color-success)' : comparisonResult.changes.effectiveness === '持平' ? 'var(--color-info)' : 'var(--color-warning)'
+                  }"
                 >
                   {{ comparisonResult.changes.effectiveness }}
                 </span>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- 空状态 -->
-        <div v-else class="bg-white rounded-xl p-12 shadow-md text-center">
-          <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+          <!-- Chart for deep comparison -->
+          <div v-if="comparisonResult.categories?.length">
+            <h4 style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">📊 病害对比图</h4>
+            <div id="comparisonChart" style="height:280px;"></div>
           </div>
-          <p class="text-gray-500">请从左侧选择两条历史记录进行对比</p>
         </div>
 
-        <!-- 使用说明 -->
-        <div class="bg-blue-50 rounded-xl p-6 border-l-4 border-blue-500">
-          <h4 class="font-bold text-gray-800 mb-2">使用说明</h4>
-          <ul class="text-sm text-gray-600 space-y-1">
-            <li>1. 从左侧列表中选择两条历史检测记录</li>
-            <li>2. 点击"对比分析"按钮查看对比结果</li>
-            <li>3. 对比结果包括数量变化、百分比变化和效果评估</li>
-            <li>4. 负数表示数量减少，正数表示数量增加</li>
-          </ul>
+        <!-- Empty State -->
+        <div v-else class="glass-card" style="text-align:center;padding:64px 32px;">
+          <div style="font-size:4rem;margin-bottom:16px;">🔍</div>
+          <p style="font-weight:600;color:var(--text-primary);font-size:1.05rem;">选择记录进行对比</p>
+          <p style="color:var(--text-muted);font-size:0.85rem;margin-top:6px;">
+            从左侧选择两条历史检测记录<br>点击"对比分析"查看详细对比结果
+          </p>
+        </div>
+
+        <!-- Tips -->
+        <div class="info-banner" style="margin-top:16px;">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div style="font-size:0.82rem;">
+            <strong>使用提示：</strong>选择两个不同时期的检测记录进行对比，系统将自动分析病害变化趋势和防治效果。
+          </div>
         </div>
       </div>
     </div>

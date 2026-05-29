@@ -1,41 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import api from '@/api'
 
-// 评估记录
-const evaluationRecords = ref([
-  {
-    id: 1,
-    treatmentDate: '2024-03-01',
-    disease: '白粉病',
-    beforeCount: 15,
-    afterCount: 3,
-    effectiveness: 80,
-    medicine: '多菌灵',
-    status: '有效'
-  },
-  {
-    id: 2,
-    treatmentDate: '2024-02-25',
-    disease: '叶斑病',
-    beforeCount: 8,
-    afterCount: 5,
-    effectiveness: 37.5,
-    medicine: '代森锰锌',
-    status: '待观察'
-  },
-  {
-    id: 3,
-    treatmentDate: '2024-02-20',
-    disease: '锈病',
-    beforeCount: 20,
-    afterCount: 2,
-    effectiveness: 90,
-    medicine: '百菌清',
-    status: '非常有效'
-  }
-])
+// Real evaluation records from API
+const evaluationRecords = ref<any[]>([])
+const loading = ref(true)
 
-// 新评估表单
+// New evaluation form
 const newEvaluation = ref({
   disease: '',
   medicine: '',
@@ -44,32 +15,103 @@ const newEvaluation = ref({
   beforeImageUrl: '',
   afterImageUrl: ''
 })
+const submitting = ref(false)
 
-// 提交评估
-function submitEvaluation() {
-  if (!newEvaluation.value.disease || !newEvaluation.value.medicine) {
-    alert('请填写所有必填字段')
-    return
-  }
+// Evaluation standards
+const standards = [
+  { range: '90%+', label: '非常有效', desc: '病害基本消除', color: '#16a34a', bg: 'var(--color-success-bg)' },
+  { range: '70-89%', label: '有效', desc: '病害明显减少', color: '#3b82f6', bg: 'var(--color-info-bg)' },
+  { range: '40-69%', label: '待观察', desc: '效果不明显', color: '#f59e0b', bg: 'var(--color-warning-bg)' },
+  { range: '<40%', label: '无效', desc: '需更换方案', color: '#ef4444', bg: 'var(--color-danger-bg)' },
+]
 
-  // 模拟提交
-  alert('评估提交成功！系统将自动分析防治效果。')
-
-  // 重置表单
-  newEvaluation.value = {
-    disease: '',
-    medicine: '',
-    beforeImage: null,
-    afterImage: null,
-    beforeImageUrl: '',
-    afterImageUrl: ''
+// Load history evaluations
+async function loadEvaluations() {
+  try {
+    // Get evaluation-type detections
+    const res = await api.get('/history?limit=50')
+    const records = res.data.records || []
+    // Process into evaluation records
+    const evals = []
+    for (const record of records) {
+      if (record.detections && record.detections.length > 0) {
+        const diseaseDetections = record.detections.filter((d: any) => d.label !== 'Healthy' && d.label !== '健康')
+        const healthyDetections = record.detections.filter((d: any) => d.label === 'Healthy' || d.label === '健康')
+        evals.push({
+          id: record.id,
+          date: record.created_at?.split(' ')[0] || '--',
+          disease: diseaseDetections[0]?.label || '健康',
+          count: diseaseDetections.length,
+          healthyCount: healthyDetections.length,
+          totalDetections: record.detections.length,
+          image: record.result_image || record.image_url,
+          detections: record.detections
+        })
+      }
+    }
+    evaluationRecords.value = evals
+  } catch {
+    evaluationRecords.value = []
+  } finally {
+    loading.value = false
   }
 }
 
-// 处理图片上传
+async function submitEvaluation() {
+  if (!newEvaluation.value.disease || !newEvaluation.value.medicine) {
+    alert('请填写病害类型和使用药剂')
+    return
+  }
+  if (!newEvaluation.value.beforeImage) {
+    alert('请上传施药前图片')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', newEvaluation.value.beforeImage)
+    if (newEvaluation.value.afterImage) {
+      formData.append('after_file', newEvaluation.value.afterImage)
+    }
+
+    const res = await api.post('/evaluation/compare', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    // Add the result to the list
+    evaluationRecords.value.unshift({
+      id: Date.now().toString(),
+      date: new Date().toISOString().split('T')[0],
+      disease: newEvaluation.value.disease,
+      count: res.data.current_count || 0,
+      change: res.data.change || 0,
+      evaluation: res.data.evaluation || '--',
+      deepAnalysis: res.data.deep_analysis
+    })
+
+    // Reset form
+    newEvaluation.value = {
+      disease: '',
+      medicine: '',
+      beforeImage: null,
+      afterImage: null,
+      beforeImageUrl: '',
+      afterImageUrl: ''
+    }
+
+    alert('评估提交成功！')
+  } catch (err) {
+    console.error('评估失败:', err)
+    alert('评估提交失败，请重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
 function handleBeforeImageUpload(e: Event) {
   const target = e.target as HTMLInputElement
-  if (target.files && target.files[0]) {
+  if (target.files?.[0]) {
     newEvaluation.value.beforeImage = target.files[0]
     newEvaluation.value.beforeImageUrl = URL.createObjectURL(target.files[0])
   }
@@ -77,240 +119,242 @@ function handleBeforeImageUpload(e: Event) {
 
 function handleAfterImageUpload(e: Event) {
   const target = e.target as HTMLInputElement
-  if (target.files && target.files[0]) {
+  if (target.files?.[0]) {
     newEvaluation.value.afterImage = target.files[0]
     newEvaluation.value.afterImageUrl = URL.createObjectURL(target.files[0])
   }
 }
 
-// 获取状态颜色
-function getStatusColor(status: string): string {
-  switch (status) {
-    case '非常有效': return 'bg-green-100 text-green-700'
-    case '有效': return 'bg-blue-100 text-blue-700'
-    case '待观察': return 'bg-yellow-100 text-yellow-700'
-    case '无效': return 'bg-red-100 text-red-700'
-    default: return 'bg-gray-100 text-gray-700'
-  }
+function getEffectivenessColor(pct: number): string {
+  if (pct >= 70) return 'var(--color-success)'
+  if (pct >= 40) return 'var(--color-warning)'
+  return 'var(--color-danger)'
 }
 
-// 获取效果条颜色
-function getEffectivenessColor(percentage: number): string {
-  if (percentage >= 70) return 'bg-green-500'
-  if (percentage >= 40) return 'bg-yellow-500'
-  return 'bg-red-500'
+function getEffectivenessBg(pct: number): string {
+  if (pct >= 70) return 'var(--color-success-bg)'
+  if (pct >= 40) return 'var(--color-warning-bg)'
+  return 'var(--color-danger-bg)'
 }
+
+function getStatusLabel(pct: number): string {
+  if (pct >= 90) return '非常有效'
+  if (pct >= 70) return '有效'
+  if (pct >= 40) return '待观察'
+  return '无效'
+}
+
+onMounted(() => {
+  loadEvaluations()
+})
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
-      <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <span class="text-yellow-800 text-sm">
-        <strong>注意：</strong>当前显示的是模拟数据，实际数据将在连接真实后端后自动更新。
-      </span>
+    <!-- Page Header -->
+    <div class="page-header animate-fade-down">
+      <h2>📋 效果评估</h2>
+      <p>评估农药和防治措施的实际效果，为科学决策提供依据</p>
     </div>
-    
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- 评估表单 -->
-      <div class="bg-white rounded-xl p-6 shadow-md">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">提交新的评估</h3>
 
-        <div class="space-y-6">
-          <!-- 病害类型 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              病害类型 <span class="text-red-500">*</span>
-            </label>
-            <select
-              v-model="newEvaluation.disease"
-              class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
-            >
-              <option value="">请选择病害类型</option>
-              <option value="powdery_mildew">白粉病 / Powdery Mildew</option>
-              <option value="leaf_spot">叶斑病 / Leaf Spot</option>
-              <option value="rust">锈病 / Rust</option>
-              <option value="early_blight">早疫病 / Early Blight</option>
-            </select>
-          </div>
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <!-- Submit Form - 2 cols -->
+      <div class="lg:col-span-2">
+        <div class="glass-card animate-fade-up stagger-1">
+          <h3 style="font-weight:700;color:var(--text-primary);margin-bottom:20px;font-size:1.05rem;">
+            📝 提交新评估
+          </h3>
 
-          <!-- 使用药剂 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              使用药剂 <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="newEvaluation.medicine"
-              type="text"
-              placeholder="请输入使用的药剂名称"
-              class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
-            />
-          </div>
-
-          <!-- 施药前图片 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              施药前图片 <span class="text-red-500">*</span>
-            </label>
-            <div
-              class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-green-500 transition-colors"
-              @click="($refs.beforeInput as HTMLInputElement).click()"
-            >
-              <input
-                ref="beforeInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleBeforeImageUpload"
-              />
-              <div v-if="newEvaluation.beforeImageUrl" class="relative">
-                <img
-                  :src="newEvaluation.beforeImageUrl"
-                  alt="施药前"
-                  class="max-h-48 mx-auto rounded-lg"
-                />
-                <p class="text-sm text-green-600 mt-2">已上传施药前图片</p>
-              </div>
-              <div v-else>
-                <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p class="text-gray-500">点击上传施药前图片</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- 施药后图片 -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              施药后图片 <span class="text-red-500">*</span>
-            </label>
-            <div
-              class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-green-500 transition-colors"
-              @click="($refs.afterInput as HTMLInputElement).click()"
-            >
-              <input
-                ref="afterInput"
-                type="file"
-                accept="image/*"
-                class="hidden"
-                @change="handleAfterImageUpload"
-              />
-              <div v-if="newEvaluation.afterImageUrl" class="relative">
-                <img
-                  :src="newEvaluation.afterImageUrl"
-                  alt="施药后"
-                  class="max-h-48 mx-auto rounded-lg"
-                />
-                <p class="text-sm text-green-600 mt-2">已上传施药后图片</p>
-              </div>
-              <div v-else>
-                <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p class="text-gray-500">点击上传施药后图片</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- 提交按钮 -->
-          <button
-            @click="submitEvaluation"
-            class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-bold hover:from-green-600 hover:to-green-700 transition-all"
-          >
-            提交评估
-          </button>
-        </div>
-      </div>
-
-      <!-- 历史评估记录 -->
-      <div class="bg-white rounded-xl p-6 shadow-md">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">评估历史</h3>
-
-        <div class="space-y-4">
-          <div
-            v-for="record in evaluationRecords"
-            :key="record.id"
-            class="border border-gray-200 rounded-xl p-4 hover:border-green-300 transition-colors"
-          >
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <span class="font-bold text-gray-800">{{ record.disease }}</span>
-                <span class="ml-2 px-2 py-0.5 rounded text-xs" :class="getStatusColor(record.status)">
-                  {{ record.status }}
-                </span>
-              </div>
-              <span class="text-sm text-gray-500">{{ record.treatmentDate }}</span>
-            </div>
-
-            <div class="grid grid-cols-3 gap-4 mb-3">
-              <div class="text-center">
-                <p class="text-sm text-gray-500">施药前</p>
-                <p class="text-xl font-bold text-red-600">{{ record.beforeCount }}</p>
-              </div>
-              <div class="text-center">
-                <p class="text-sm text-gray-500">施药后</p>
-                <p class="text-xl font-bold text-green-600">{{ record.afterCount }}</p>
-              </div>
-              <div class="text-center">
-                <p class="text-sm text-gray-500">使用药剂</p>
-                <p class="text-sm font-medium text-blue-600">{{ record.medicine }}</p>
-              </div>
-            </div>
-
+          <div class="space-y-5">
+            <!-- Disease Type -->
             <div>
-              <div class="flex items-center justify-between text-sm mb-1">
-                <span class="text-gray-600">防治效果</span>
-                <span class="font-bold" :class="record.effectiveness >= 70 ? 'text-green-600' : record.effectiveness >= 40 ? 'text-yellow-600' : 'text-red-600'">
-                  {{ record.effectiveness }}%
-                </span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  class="h-2 rounded-full transition-all"
-                  :class="getEffectivenessColor(record.effectiveness)"
-                  :style="{ width: record.effectiveness + '%' }"
-                ></div>
+              <label class="form-label">病害类型 <span class="required">*</span></label>
+              <select v-model="newEvaluation.disease" class="form-select">
+                <option value="">请选择病害类型</option>
+                <option value="白粉病">白粉病 / Powdery Mildew</option>
+                <option value="叶斑病">叶斑病 / Leaf Spot</option>
+                <option value="锈病">锈病 / Rust</option>
+                <option value="早疫病">早疫病 / Early Blight</option>
+                <option value="晚疫病">晚疫病 / Late Blight</option>
+              </select>
+            </div>
+
+            <!-- Medicine -->
+            <div>
+              <label class="form-label">使用药剂 <span class="required">*</span></label>
+              <input
+                v-model="newEvaluation.medicine"
+                type="text"
+                placeholder="请输入使用的药剂名称"
+                class="form-input"
+              />
+            </div>
+
+            <!-- Before Image -->
+            <div>
+              <label class="form-label">施药前图片 <span class="required">*</span></label>
+              <div
+                class="upload-zone"
+                @click="($refs.beforeInput as HTMLInputElement)?.click()"
+              >
+                <input
+                  ref="beforeInput"
+                  type="file"
+                  accept="image/*"
+                  style="display:none"
+                  @change="handleBeforeImageUpload"
+                />
+                <div v-if="newEvaluation.beforeImageUrl" style="position:relative;">
+                  <img :src="newEvaluation.beforeImageUrl" alt="施药前" style="max-height:160px;margin:0 auto;border-radius:8px;" />
+                  <p style="color:var(--color-success);font-size:0.85rem;margin-top:6px;">✅ 已上传施药前图片</p>
+                </div>
+                <div v-else>
+                  <div class="upload-icon">📸</div>
+                  <p style="font-weight:500;">点击上传施药前图片</p>
+                  <p style="font-size:0.8rem;color:var(--text-muted);">支持 JPG、PNG 格式</p>
+                </div>
               </div>
             </div>
+
+            <!-- After Image -->
+            <div>
+              <label class="form-label">施药后图片 <span style="color:var(--text-muted);font-weight:400;">(可选)</span></label>
+              <div
+                class="upload-zone"
+                @click="($refs.afterInput as HTMLInputElement)?.click()"
+              >
+                <input
+                  ref="afterInput"
+                  type="file"
+                  accept="image/*"
+                  style="display:none"
+                  @change="handleAfterImageUpload"
+                />
+                <div v-if="newEvaluation.afterImageUrl" style="position:relative;">
+                  <img :src="newEvaluation.afterImageUrl" alt="施药后" style="max-height:160px;margin:0 auto;border-radius:8px;" />
+                  <p style="color:var(--color-success);font-size:0.85rem;margin-top:6px;">✅ 已上传施药后图片</p>
+                </div>
+                <div v-else>
+                  <div class="upload-icon">🔬</div>
+                  <p style="font-weight:500;">点击上传施药后图片</p>
+                  <p style="font-size:0.8rem;color:var(--text-muted);">用于对比分析</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <button
+              @click="submitEvaluation"
+              :disabled="submitting"
+              class="btn btn-primary btn-lg"
+              style="width:100%;"
+            >
+              {{ submitting ? '⏳ 正在分析...' : '🚀 提交评估' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evaluation History - 3 cols -->
+      <div class="lg:col-span-3">
+        <div class="glass-card animate-fade-up stagger-2" style="margin-bottom:20px;">
+          <h3 style="font-weight:700;color:var(--text-primary);margin-bottom:16px;font-size:1.05rem;">
+            📊 评估记录
+            <span style="font-weight:400;font-size:0.8rem;color:var(--text-muted);margin-left:8px;">
+              ({{ evaluationRecords.length }} 条)
+            </span>
+          </h3>
+
+          <!-- Loading -->
+          <div v-if="loading" style="text-align:center;padding:40px;">
+            <div class="skeleton" style="height:80px;margin-bottom:12px;"></div>
+            <div class="skeleton" style="height:80px;margin-bottom:12px;"></div>
+            <div class="skeleton" style="height:80px;"></div>
+          </div>
+
+          <!-- Records -->
+          <div v-else-if="evaluationRecords.length > 0" class="space-y-3" style="max-height:600px;overflow-y:auto;">
+            <div
+              v-for="(record, idx) in evaluationRecords"
+              :key="record.id"
+              class="section-card animate-fade-up"
+              :class="'stagger-' + Math.min(idx + 1, 8)"
+              style="cursor:pointer;padding:18px 20px;"
+            >
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div>
+                  <span style="font-weight:700;color:var(--text-primary);">{{ record.disease }}</span>
+                  <span
+                    style="margin-left:8px;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;"
+                    :style="{ background: getEffectivenessBg(record.change ? Math.abs(record.change) : record.effectiveness || 0), color: getEffectivenessColor(record.change ? Math.abs(record.change) : record.effectiveness || 0) }"
+                  >
+                    {{ record.evaluation || getStatusLabel(record.effectiveness || 0) }}
+                  </span>
+                </div>
+                <span style="font-size:0.8rem;color:var(--text-muted);">{{ record.date }}</span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                <div style="text-align:center;padding:10px;background:var(--color-danger-bg);border-radius:10px;">
+                  <p style="font-size:0.75rem;color:var(--text-muted);">菌落数量</p>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-danger);">{{ record.count || record.beforeCount || '--' }}</p>
+                </div>
+                <div style="text-align:center;padding:10px;background:var(--color-success-bg);border-radius:10px;">
+                  <p style="font-size:0.75rem;color:var(--text-muted);">健康区域</p>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-success);">{{ record.healthyCount || record.afterCount || '--' }}</p>
+                </div>
+                <div style="text-align:center;padding:10px;background:var(--color-info-bg);border-radius:10px;">
+                  <p style="font-size:0.75rem;color:var(--text-muted);">检测总数</p>
+                  <p style="font-size:1.3rem;font-weight:800;color:var(--color-info);">{{ record.totalDetections || record.beforeCount || '--' }}</p>
+                </div>
+              </div>
+
+              <!-- Effect bar -->
+              <div v-if="record.effectiveness !== undefined" style="margin-top:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:4px;">
+                  <span style="color:var(--text-secondary);">防治效果</span>
+                  <span style="font-weight:700;" :style="{ color: getEffectivenessColor(record.effectiveness) }">
+                    {{ record.effectiveness }}%
+                  </span>
+                </div>
+                <div class="progress-track">
+                  <div
+                    class="progress-fill"
+                    :style="{ width: record.effectiveness + '%', background: getEffectivenessColor(record.effectiveness) }"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty -->
+          <div v-else style="text-align:center;padding:48px 20px;">
+            <div style="font-size:3rem;margin-bottom:12px;">📭</div>
+            <p style="color:var(--text-secondary);font-weight:500;">暂无评估记录</p>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">提交新的评估后将在此显示</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 效果评估标准 -->
-    <div class="bg-white rounded-xl p-6 shadow-md">
-      <h3 class="text-lg font-bold text-gray-800 mb-4">效果评估标准</h3>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="text-center p-4 bg-green-50 rounded-xl">
-          <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
-            <span class="text-white font-bold">90%+</span>
+    <!-- Evaluation Standards -->
+    <div class="glass-card animate-fade-up stagger-3">
+      <h3 style="font-weight:700;color:var(--text-primary);margin-bottom:16px;font-size:1.05rem;">📏 效果评估标准</h3>
+      <div class="stats-grid" style="margin-bottom:0;">
+        <div
+          v-for="std in standards"
+          :key="std.range"
+          class="section-card"
+          style="text-align:center;padding:24px 20px;cursor:default;"
+        >
+          <div
+            style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-weight:800;font-size:1rem;"
+            :style="{ background: std.bg, color: std.color }"
+          >
+            {{ std.range }}
           </div>
-          <p class="font-medium text-gray-800">非常有效</p>
-          <p class="text-sm text-gray-500">病害基本消除</p>
-        </div>
-        <div class="text-center p-4 bg-blue-50 rounded-xl">
-          <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
-            <span class="text-white font-bold">70%+</span>
-          </div>
-          <p class="font-medium text-gray-800">有效</p>
-          <p class="text-sm text-gray-500">病害明显减少</p>
-        </div>
-        <div class="text-center p-4 bg-yellow-50 rounded-xl">
-          <div class="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-2">
-            <span class="text-white font-bold">40%+</span>
-          </div>
-          <p class="font-medium text-gray-800">待观察</p>
-          <p class="text-sm text-gray-500">效果不明显</p>
-        </div>
-        <div class="text-center p-4 bg-red-50 rounded-xl">
-          <div class="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
-            <span class="text-white font-bold">&lt;40%</span>
-          </div>
-          <p class="font-medium text-gray-800">无效</p>
-          <p class="text-sm text-gray-500">需更换方案</p>
+          <p style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">{{ std.label }}</p>
+          <p style="font-size:0.82rem;color:var(--text-secondary);">{{ std.desc }}</p>
         </div>
       </div>
     </div>

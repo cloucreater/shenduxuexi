@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.detection import Detection, DetectionItem
+from app.ml.deep_model import deep_learning_engine
 import json
 
 router = APIRouter()
@@ -65,6 +66,7 @@ async def get_history(
 async def compare_history(
     period1: dict,
     period2: dict,
+    comparison_type: str = "disease",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -74,6 +76,34 @@ async def compare_history(
     p1_end = datetime.strptime(period1["end"], "%Y-%m-%d")
     p2_start = datetime.strptime(period2["start"], "%Y-%m-%d")
     p2_end = datetime.strptime(period2["end"], "%Y-%m-%d")
+
+    def get_detection_data(start, end):
+        detections = db.query(Detection).filter(
+            Detection.user_id == current_user.id,
+            Detection.created_at >= start,
+            Detection.created_at <= end
+        ).all()
+
+        detection_data = []
+        for d in detections:
+            items = db.query(DetectionItem).filter(
+                DetectionItem.detection_id == d.id
+            ).all()
+            for item in items:
+                detection_data.append({
+                    "label": item.label,
+                    "label_en": item.label_en,
+                    "confidence": item.confidence,
+                    "created_at": d.created_at
+                })
+        return detection_data
+
+    period1_data = get_detection_data(p1_start, p1_end)
+    period2_data = get_detection_data(p2_start, p2_end)
+
+    deep_analysis = deep_learning_engine.analyze_historical_comparison(
+        period1_data, period2_data, comparison_type
+    )
 
     def get_category_counts(start, end):
         detections = db.query(Detection).filter(
@@ -125,5 +155,6 @@ async def compare_history(
         "categories": categories,
         "period1_values": period1_values,
         "period2_values": period2_values,
-        "details": details
+        "details": details,
+        "deep_analysis": deep_analysis
     }

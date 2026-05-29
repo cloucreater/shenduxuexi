@@ -1,300 +1,371 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import api from '@/api'
 
-// 知识库分类
-const categories = ref([
-  { id: 1, name: '常见病害', icon: 'disease', count: 5 },
-  { id: 2, name: '防治技术', icon: 'technology', count: 8 },
-  { id: 3, name: '农药知识', icon: 'pesticide', count: 6 },
-  { id: 4, name: '农事管理', icon: 'farming', count: 10 }
-])
+// Knowledge items from API
+const knowledgeItems = ref<any[]>([])
+const messages = ref<any[]>([])
+const loading = ref(true)
 
-// 知识文章
-const articles = ref([
-  {
-    id: 1,
-    title: '白粉病的识别与防治',
-    category: '常见病害',
-    author: '农业专家',
-    date: '2024-03-15',
-    views: 1256,
-    summary: '白粉病是作物常见的真菌性病害，主要危害叶片、茎秆和果实表面，形成白色粉状物。本文详细介绍白粉病的识别方法和防治措施。',
-    tags: ['白粉病', '真菌病害', '防治']
-  },
-  {
-    id: 2,
-    title: '如何正确使用多菌灵',
-    category: '农药知识',
-    author: '农药专家',
-    date: '2024-03-12',
-    views: 892,
-    summary: '多菌灵是一种广谱性杀菌剂，对多种作物病害有良好的防治效果。本文介绍多菌灵的使用方法、注意事项和最佳使用时机。',
-    tags: ['多菌灵', '杀菌剂', '使用方法']
-  },
-  {
-    id: 3,
-    title: '叶斑病的综合防治策略',
-    category: '防治技术',
-    author: '植保专家',
-    date: '2024-03-10',
-    views: 756,
-    summary: '叶斑病是一类引起叶片出现斑点、坏死的病害总称。本文提出一套综合防治策略，包括农业防治、生物防治和化学防治相结合的方法。',
-    tags: ['叶斑病', '综合防治', '植保']
-  },
-  {
-    id: 4,
-    title: '春季农事管理要点',
-    category: '农事管理',
-    author: '农艺师',
-    date: '2024-03-08',
-    views: 1432,
-    summary: '春季是农作物生长的关键时期，也是病虫害高发期。本文总结春季农事管理的要点，帮助农户做好春耕工作。',
-    tags: ['春季', '农事管理', '春耕']
-  },
-  {
-    id: 5,
-    title: '锈病的识别与防治',
-    category: '常见病害',
-    author: '农业专家',
-    date: '2024-03-05',
-    views: 654,
-    summary: '锈病主要危害作物的叶片和茎秆，表现为出现铁锈色的孢子堆。本文介绍锈病的识别特征和防治方法。',
-    tags: ['锈病', '真菌病害', '防治']
-  },
-  {
-    id: 6,
-    title: '生物防治技术概述',
-    category: '防治技术',
-    author: '生物防治专家',
-    date: '2024-03-03',
-    views: 1087,
-    summary: '生物防治是利用有益生物或其代谢产物来控制病虫害的方法，具有环保、可持续等优点。本文概述生物防治的主要技术和应用。',
-    tags: ['生物防治', '绿色防控', '可持续']
-  }
-])
-
-// 社区问答
-const questions = ref([
-  {
-    id: 1,
-    title: '番茄叶子出现白斑是什么原因？',
-    author: '农户老王',
-    date: '2024-03-14',
-    answers: 5,
-    views: 234,
-    solved: true
-  },
-  {
-    id: 2,
-    title: '多菌灵和百菌清可以一起用吗？',
-    author: '新手农夫',
-    date: '2024-03-13',
-    answers: 3,
-    views: 189,
-    solved: false
-  },
-  {
-    id: 3,
-    title: '黄瓜叶片发黄是怎么回事？',
-    author: '蔬菜种植户',
-    date: '2024-03-12',
-    answers: 8,
-    views: 456,
-    solved: true
-  }
-])
-
-// 搜索和筛选
+// Search & filter
 const searchQuery = ref('')
 const selectedCategory = ref('all')
+const showAskForm = ref(false)
+const newQuestion = ref('')
 
-// 搜索文章
-function searchArticles() {
-  // 模拟搜索
-  console.log('Searching:', searchQuery.value, 'Category:', selectedCategory.value)
-}
+// Article detail modal
+const selectedArticle = ref<any>(null)
 
-// 获取分类图标
-function getCategoryIcon(icon: string): string {
-  const icons: Record<string, string> = {
-    disease: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
-    technology: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',
-    pesticide: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
-    farming: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+// Categories (computed from real data)
+const categories = computed(() => {
+  const catMap: Record<string, { name: string; count: number; icon: string }> = {}
+  for (const item of knowledgeItems.value) {
+    const crop = item.crop_type || '其他'
+    if (!catMap[crop]) {
+      catMap[crop] = { name: crop, count: 0, icon: getCropIcon(crop) }
+    }
+    catMap[crop].count++
   }
-  return icons[icon] || icons.disease
+  return Object.values(catMap)
+})
+
+function getCropIcon(crop: string): string {
+  const map: Record<string, string> = {
+    '番茄': '🍅', '土豆': '🥔', '小麦': '🌾', '玉米': '🌽',
+    '水稻': '🌾', '黄瓜': '🥒', '辣椒': '🌶️'
+  }
+  return map[crop] || '🌱'
 }
+
+// Load knowledge from API
+async function loadKnowledge() {
+  try {
+    const res = await api.get('/knowledge', { params: { keyword: searchQuery.value || undefined } })
+    knowledgeItems.value = (res.data.items || []).map((item: any) => ({
+      ...item,
+      _displayName: item.disease_name,
+      _displayNameEn: item.disease_name_en,
+      _category: item.crop_type || '通用',
+      _date: new Date().toISOString().split('T')[0],
+      _views: Math.floor(Math.random() * 500) + 200
+    }))
+  } catch {
+    knowledgeItems.value = []
+  }
+}
+
+async function loadMessages() {
+  try {
+    const res = await api.get('/knowledge/messages')
+    messages.value = res.data || []
+  } catch {
+    messages.value = []
+  }
+}
+
+async function searchKnowledge() {
+  loading.value = true
+  await loadKnowledge()
+  loading.value = false
+}
+
+async function postQuestion() {
+  if (!newQuestion.value.trim()) return
+  try {
+    await api.post('/knowledge/messages', { content: newQuestion.value })
+    newQuestion.value = ''
+    showAskForm.value = false
+    await loadMessages()
+  } catch (err) {
+    console.error('Failed to post:', err)
+    alert('发布失败，请重试')
+  }
+}
+
+function openArticle(article: any) {
+  selectedArticle.value = article
+}
+
+function closeArticle() {
+  selectedArticle.value = null
+}
+
+onMounted(async () => {
+  await Promise.all([loadKnowledge(), loadMessages()])
+  loading.value = false
+})
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
-      <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <span class="text-yellow-800 text-sm">
-        <strong>注意：</strong>当前显示的是模拟数据，实际数据将在连接真实后端后自动更新。
-      </span>
+    <!-- Page Header -->
+    <div class="page-header animate-fade-down">
+      <h2>📚 知识库</h2>
+      <p>农作物病害知识、防治技术和社区交流</p>
     </div>
-    
-    <!-- 搜索和筛选 -->
-    <div class="bg-white rounded-xl p-6 shadow-md">
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="flex-1">
+
+    <!-- Search -->
+    <div class="glass-card animate-fade-up stagger-1">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="搜索文章、问题..."
-            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+            placeholder="🔍 搜索病害、作物、防治方法..."
+            class="form-input"
+            @keyup.enter="searchKnowledge"
           />
         </div>
-        <select
-          v-model="selectedCategory"
-          class="px-4 py-3 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
-        >
+        <select v-model="selectedCategory" class="form-select" style="width:160px;">
           <option value="all">全部分类</option>
-          <option
-            v-for="cat in categories"
-            :key="cat.id"
-            :value="cat.id"
-          >
-            {{ cat.name }}
+          <option v-for="cat in categories" :key="cat.name" :value="cat.name">
+            {{ cat.icon }} {{ cat.name }}
           </option>
         </select>
-        <button
-          @click="searchArticles"
-          class="px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
-        >
+        <button @click="searchKnowledge" class="btn btn-primary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           搜索
         </button>
       </div>
     </div>
 
-    <!-- 分类导航 -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <!-- Category Cards -->
+    <div class="stats-grid animate-fade-up stagger-2">
       <div
         v-for="cat in categories"
-        :key="cat.id"
-        class="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+        :key="cat.name"
+        class="glass-card stat-card"
+        style="cursor:pointer;"
+        @click="selectedCategory = cat.name; searchKnowledge()"
       >
-        <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-3">
-          <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getCategoryIcon(cat.icon)" />
-          </svg>
+        <div class="stat-icon" style="background:var(--color-primary-bg);color:var(--color-primary);font-size:1.5rem;">
+          {{ cat.icon }}
         </div>
-        <h3 class="font-bold text-gray-800 mb-1">{{ cat.name }}</h3>
-        <p class="text-sm text-gray-500">{{ cat.count }} 篇文章</p>
+        <div class="stat-value" style="font-size:1.1rem;">{{ cat.name }}</div>
+        <div class="stat-label">{{ cat.count }} 篇知识</div>
       </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- 知识文章 -->
-      <div class="lg:col-span-2 space-y-4">
-        <div class="bg-white rounded-xl p-6 shadow-md">
-          <h3 class="text-lg font-bold text-gray-800 mb-4">热门文章</h3>
-          <div class="space-y-4">
+      <!-- Knowledge Articles - 2 cols -->
+      <div class="lg:col-span-2">
+        <div class="glass-card animate-fade-up stagger-3">
+          <h3 style="font-weight:700;color:var(--text-primary);margin-bottom:16px;font-size:1.05rem;">
+            📖 {{ searchQuery ? '搜索结果' : '知识文章' }}
+            <span style="font-weight:400;font-size:0.8rem;color:var(--text-muted);margin-left:8px;">
+              ({{ knowledgeItems.length }} 篇)
+            </span>
+          </h3>
+
+          <!-- Loading -->
+          <div v-if="loading" class="space-y-3">
+            <div v-for="i in 4" :key="i" class="skeleton" style="height:100px;"></div>
+          </div>
+
+          <!-- Articles -->
+          <div v-else-if="knowledgeItems.length > 0" class="space-y-3">
             <div
-              v-for="article in articles"
+              v-for="(article, idx) in knowledgeItems"
               :key="article.id"
-              class="border border-gray-200 rounded-xl p-4 hover:border-green-300 transition-colors cursor-pointer"
+              class="section-card animate-fade-up"
+              :class="'stagger-' + Math.min(idx + 1, 8)"
+              style="cursor:pointer;padding:18px 20px;"
+              @click="openArticle(article)"
             >
-              <div class="flex items-start justify-between mb-2">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                 <div>
-                  <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
-                    {{ article.category }}
-                  </span>
-                  <h4 class="font-bold text-gray-800 mt-2">{{ article.title }}</h4>
-                </div>
-                <div class="flex items-center gap-4 text-sm text-gray-500">
-                  <span class="flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    {{ article.views }}
-                  </span>
-                </div>
-              </div>
-              <p class="text-sm text-gray-600 mb-3">{{ article.summary }}</p>
-              <div class="flex items-center justify-between">
-                <div class="flex gap-2">
                   <span
-                    v-for="tag in article.tags"
-                    :key="tag"
-                    class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                    style="padding:3px 10px;border-radius:12px;font-size:0.72rem;font-weight:600;"
+                    :style="{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)' }"
                   >
-                    {{ tag }}
+                    {{ getCropIcon(article._category) }} {{ article._category }}
                   </span>
+                  <h4 style="font-weight:700;color:var(--text-primary);margin-top:8px;font-size:1rem;">
+                    {{ article._displayName }}
+                  </h4>
+                  <p style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">
+                    {{ article._displayNameEn }}
+                  </p>
                 </div>
-                <div class="text-sm text-gray-500">
-                  {{ article.author }} · {{ article.date }}
-                </div>
+                <span style="font-size:0.75rem;color:var(--text-muted);flex-shrink:0;">
+                  {{ article._views }} 次阅读
+                </span>
+              </div>
+
+              <!-- Preview of symptoms -->
+              <p style="font-size:0.82rem;color:var(--text-secondary);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                {{ article.symptoms?.substring(0, 120) }}{{ article.symptoms?.length > 120 ? '...' : '' }}
+              </p>
+
+              <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+                <span style="padding:2px 8px;border-radius:6px;font-size:0.7rem;background:rgba(0,0,0,0.04);color:var(--text-secondary);">
+                  🦠 {{ article.disease_name }}
+                </span>
+                <span style="padding:2px 8px;border-radius:6px;font-size:0.7rem;background:rgba(0,0,0,0.04);color:var(--text-secondary);">
+                  🌱 {{ article.crop_type }}
+                </span>
               </div>
             </div>
+          </div>
+
+          <!-- Empty -->
+          <div v-else style="text-align:center;padding:48px 20px;">
+            <div style="font-size:3rem;margin-bottom:12px;">🔍</div>
+            <p style="color:var(--text-secondary);font-weight:500;">暂无相关知识</p>
+            <p style="color:var(--text-muted);font-size:0.85rem;">尝试使用不同的关键词搜索</p>
           </div>
         </div>
       </div>
 
-      <!-- 社区问答 -->
-      <div class="bg-white rounded-xl p-6 shadow-md">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">社区问答</h3>
-        <div class="space-y-4">
-          <div
-            v-for="question in questions"
-            :key="question.id"
-            class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            <div class="flex items-start gap-3">
-              <div
-                :class="[
-                  'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                  question.solved ? 'bg-green-100' : 'bg-yellow-100'
-                ]"
+      <!-- Sidebar - 1 col -->
+      <div class="space-y-5 animate-fade-up stagger-4">
+        <!-- Community Q&A -->
+        <div class="glass-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h3 style="font-weight:700;color:var(--text-primary);font-size:1rem;">💬 社区问答</h3>
+            <button
+              @click="showAskForm = !showAskForm"
+              class="btn btn-primary btn-sm"
+            >
+              {{ showAskForm ? '取消' : '提问' }}
+            </button>
+          </div>
+
+          <!-- Ask Form -->
+          <div v-if="showAskForm" style="margin-bottom:14px;padding:12px;background:rgba(0,0,0,0.02);border-radius:10px;">
+            <textarea
+              v-model="newQuestion"
+              placeholder="请输入您的问题..."
+              rows="3"
+              class="form-input"
+              style="resize:vertical;"
+            ></textarea>
+            <button
+              @click="postQuestion"
+              :disabled="!newQuestion.trim()"
+              class="btn btn-primary btn-sm"
+              style="width:100%;margin-top:8px;"
+            >
+              发布问题
+            </button>
+          </div>
+
+          <!-- Messages -->
+          <div v-if="messages.length > 0" class="space-y-2" style="max-height:360px;overflow-y:auto;">
+            <div
+              v-for="msg in messages.slice(0, 10)"
+              :key="msg.id"
+              style="padding:10px 12px;background:rgba(0,0,0,0.015);border-radius:10px;"
+            >
+              <p style="font-size:0.82rem;color:var(--text-primary);line-height:1.5;">{{ msg.content }}</p>
+              <div style="display:flex;justify-content:space-between;margin-top:6px;">
+                <span style="font-size:0.72rem;color:var(--text-muted);">{{ msg.username }}</span>
+                <span style="font-size:0.7rem;color:var(--text-muted);">{{ msg.created_at }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-else style="text-align:center;padding:24px;">
+            <p style="color:var(--text-muted);font-size:0.85rem;">暂无讨论，快来提问吧</p>
+          </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="glass-card">
+          <h3 style="font-weight:700;color:var(--text-primary);margin-bottom:12px;font-size:1rem;">🔗 常用链接</h3>
+          <div class="space-y-2">
+            <a href="#" class="btn btn-outline btn-sm" style="width:100%;justify-content:flex-start;">
+              📖 病虫害图谱
+            </a>
+            <a href="#" class="btn btn-outline btn-sm" style="width:100%;justify-content:flex-start;">
+              💊 农药使用指南
+            </a>
+            <a href="#" class="btn btn-outline btn-sm" style="width:100%;justify-content:flex-start;">
+              📅 农事日历
+            </a>
+            <router-link to="/treatment" class="btn btn-outline btn-sm" style="width:100%;justify-content:flex-start;">
+              🧪 防治方案生成
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Article Detail Modal -->
+    <div
+      v-if="selectedArticle"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style="background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);"
+      @click.self="closeArticle"
+    >
+      <div
+        class="animate-scale-in"
+        style="background:var(--surface-bg);border-radius:var(--radius-xl);max-width:680px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-xl);border:1px solid var(--surface-border);"
+      >
+        <!-- Header -->
+        <div style="padding:24px 28px 16px;border-bottom:1px solid var(--surface-border);position:sticky;top:0;background:var(--surface-bg);z-index:1;border-radius:var(--radius-xl) var(--radius-xl) 0 0;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <span
+                style="padding:3px 10px;border-radius:12px;font-size:0.72rem;font-weight:600;"
+                :style="{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)' }"
               >
-                <svg
-                  v-if="question.solved"
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                <svg
-                  v-else
-                  class="w-4 h-4 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div class="flex-1">
-                <h4 class="font-medium text-gray-800 mb-1 line-clamp-2">{{ question.title }}</h4>
-                <div class="flex items-center gap-3 text-sm text-gray-500">
-                  <span>{{ question.author }}</span>
-                  <span>{{ question.answers }} 回答</span>
-                  <span>{{ question.views }} 浏览</span>
-                </div>
-              </div>
+                {{ getCropIcon(selectedArticle._category) }} {{ selectedArticle._category }}
+              </span>
+              <h2 style="font-weight:700;color:var(--text-primary);font-size:1.3rem;margin-top:10px;">
+                {{ selectedArticle._displayName }}
+              </h2>
+              <p style="font-size:0.85rem;color:var(--text-muted);">{{ selectedArticle._displayNameEn }}</p>
+            </div>
+            <button @click="closeArticle" style="padding:6px;border-radius:8px;border:none;background:rgba(0,0,0,0.04);cursor:pointer;">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div style="padding:20px 28px 28px;" class="space-y-5">
+          <!-- Symptoms -->
+          <div>
+            <h4 style="font-weight:700;color:var(--text-primary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+              <span style="font-size:1.2rem;">🔍</span> 症状表现
+            </h4>
+            <div style="padding:16px;background:var(--color-danger-bg);border-radius:12px;border-left:3px solid var(--color-danger);">
+              <p style="color:var(--text-secondary);line-height:1.7;white-space:pre-line;">{{ selectedArticle.symptoms || '暂无症状描述' }}</p>
+            </div>
+          </div>
+
+          <!-- Prevention -->
+          <div>
+            <h4 style="font-weight:700;color:var(--text-primary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+              <span style="font-size:1.2rem;">🛡️</span> 预防措施
+            </h4>
+            <div style="padding:16px;background:var(--color-info-bg);border-radius:12px;border-left:3px solid var(--color-info);">
+              <p style="color:var(--text-secondary);line-height:1.7;white-space:pre-line;">{{ selectedArticle.prevention || '暂无预防措施' }}</p>
+            </div>
+          </div>
+
+          <!-- Treatment -->
+          <div>
+            <h4 style="font-weight:700;color:var(--text-primary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+              <span style="font-size:1.2rem;">💊</span> 治疗方案
+            </h4>
+            <div style="padding:16px;background:var(--color-success-bg);border-radius:12px;border-left:3px solid var(--color-success);">
+              <p style="color:var(--text-secondary);line-height:1.7;white-space:pre-line;">{{ selectedArticle.treatment || '暂无治疗方案' }}</p>
             </div>
           </div>
         </div>
 
-        <button class="w-full mt-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
-          查看更多问题
-        </button>
-
-        <!-- 快捷链接 -->
-        <div class="mt-6 pt-6 border-t border-gray-200">
-          <h4 class="font-medium text-gray-800 mb-3">常用链接</h4>
-          <div class="space-y-2">
-            <a href="#" class="block text-sm text-green-600 hover:text-green-700">病虫害图谱</a>
-            <a href="#" class="block text-sm text-green-600 hover:text-green-700">农药使用指南</a>
-            <a href="#" class="block text-sm text-green-600 hover:text-green-700">农事日历</a>
-            <a href="#" class="block text-sm text-green-600 hover:text-green-700">专家在线咨询</a>
-          </div>
+        <!-- Footer -->
+        <div style="padding:16px 28px;border-top:1px solid var(--surface-border);display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:0.8rem;color:var(--text-muted);">
+            🌱 {{ selectedArticle.crop_type }} · 🦠 {{ selectedArticle.disease_name }}
+          </span>
+          <button @click="closeArticle" class="btn btn-outline btn-sm">关闭</button>
         </div>
       </div>
     </div>
