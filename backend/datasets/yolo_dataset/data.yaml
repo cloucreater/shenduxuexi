@@ -1,0 +1,20 @@
+# YOLOv8 Classification Dataset Config
+# Generated: 2026-05-29 20:57:53
+# Source: PlantVillage Tomato Leaf Subset
+
+path: D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_dataset
+train: train
+val: val
+test: test
+
+# Number of classes
+nc: 6
+
+# Class names (English)
+names:
+  0: Bacterial_spot  # 细菌性斑点病
+  1: Early_blight  # 早疫病
+  2: Late_blight  # 晚疫病
+  3: Leaf_Mold  # 叶霉病
+  4: Septoria_leaf_spot  # 斑枯病
+  5: Healthy  # 健康

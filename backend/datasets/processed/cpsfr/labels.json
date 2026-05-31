@@ -1,0 +1,16 @@
+{
+  "num_classes": 4,
+  "labels": {
+    "0": "bacterial_spot",
+    "1": "fusarium_wilt",
+    "2": "healthy",
+    "3": "powdery_mildew"
+  },
+  "labels_cn": {
+    "0": "细菌性斑点病",
+    "1": "枯萎病",
+    "2": "健康",
+    "3": "白粉病"
+  },
+  "generated": "2026-05-29T21:00:38.901052"
+}

@@ -72,16 +72,19 @@ async def get_messages(
         for m in messages
     ]
 
+class PostMessageRequest(BaseModel):
+    content: str
+
 @router.post("/messages")
 async def post_message(
-    content: str,
+    request: PostMessageRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     message = Message(
         user_id=current_user.id,
         username=current_user.username,
-        content=content
+        content=request.content
     )
     db.add(message)
     db.commit()

@@ -42,7 +42,7 @@ export const useDetectionStore = defineStore('detection', () => {
     isLoading.value = true
     try {
       const formData = new FormData()
-      formData.append('video', file)
+      formData.append('file', file)
       const response = await api.post('/detect/video', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {

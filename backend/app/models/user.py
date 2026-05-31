@@ -10,6 +10,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     email = Column(String(100), unique=True, nullable=True, index=True)
     phone = Column(String(20), unique=True, nullable=True, index=True)
+    avatar = Column(String(255), nullable=True)
     role = Column(String(20), default="user")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())

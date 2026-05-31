@@ -1,0 +1,104 @@
+{
+  "source": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset",
+  "target_size": 640,
+  "augment": false,
+  "splits": {
+    "train": {
+      "original": 3831,
+      "processed": 3831,
+      "augmentation_ratio": 1.0,
+      "classes": {
+        "bacterial_spot": {
+          "original": 768,
+          "processed": 768
+        },
+        "early_blight": {
+          "original": 762,
+          "processed": 762
+        },
+        "healthy": {
+          "original": 765,
+          "processed": 765
+        },
+        "late_blight": {
+          "original": 763,
+          "processed": 763
+        },
+        "leaf_mold": {
+          "original": 760,
+          "processed": 760
+        },
+        "septoria_leaf_spot": {
+          "original": 13,
+          "processed": 13
+        }
+      }
+    },
+    "val": {
+      "original": 981,
+      "processed": 981,
+      "augmentation_ratio": 1.0,
+      "classes": {
+        "bacterial_spot": {
+          "original": 164,
+          "processed": 164
+        },
+        "early_blight": {
+          "original": 163,
+          "processed": 163
+        },
+        "healthy": {
+          "original": 164,
+          "processed": 164
+        },
+        "late_blight": {
+          "original": 163,
+          "processed": 163
+        },
+        "leaf_mold": {
+          "original": 163,
+          "processed": 163
+        },
+        "septoria_leaf_spot": {
+          "original": 164,
+          "processed": 164
+        }
+      }
+    },
+    "test": {
+      "original": 990,
+      "processed": 990,
+      "augmentation_ratio": 1.0,
+      "classes": {
+        "bacterial_spot": {
+          "original": 166,
+          "processed": 166
+        },
+        "early_blight": {
+          "original": 164,
+          "processed": 164
+        },
+        "healthy": {
+          "original": 165,
+          "processed": 165
+        },
+        "late_blight": {
+          "original": 165,
+          "processed": 165
+        },
+        "leaf_mold": {
+          "original": 164,
+          "processed": 164
+        },
+        "septoria_leaf_spot": {
+          "original": 166,
+          "processed": 166
+        }
+      }
+    }
+  },
+  "corrupted_files": [],
+  "duplicates": [],
+  "total_processed": 5802,
+  "total_original": 5802
+}

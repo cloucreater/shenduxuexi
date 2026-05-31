@@ -1,0 +1,115 @@
+{
+  "timestamp": "2026-05-29T20:58:08.460495",
+  "datasets": {
+    "Tomato (YOLO)": {
+      "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset",
+      "summary": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset",
+        "classes": {
+          "Bacterial_spot": {
+            "train": 768,
+            "val": 164,
+            "test": 166
+          },
+          "Early_blight": {
+            "train": 762,
+            "val": 163,
+            "test": 164
+          },
+          "Healthy": {
+            "train": 765,
+            "val": 164,
+            "test": 165
+          },
+          "Late_blight": {
+            "train": 763,
+            "val": 163,
+            "test": 165
+          },
+          "Leaf_Mold": {
+            "train": 760,
+            "val": 163,
+            "test": 164
+          },
+          "Septoria_leaf_spot": {
+            "train": 13,
+            "val": 164,
+            "test": 166
+          }
+        },
+        "total": {
+          "train": 3831,
+          "val": 981,
+          "test": 990
+        },
+        "ratios": {
+          "train": 66.0,
+          "val": 16.9,
+          "test": 17.1
+        },
+        "class_balance": {
+          "balanced": false,
+          "min_class": "Septoria_leaf_spot",
+          "min_count": 343,
+          "max_class": "Bacterial_spot",
+          "max_count": 1098,
+          "mean": 967.0,
+          "std": 279.1
+        },
+        "issues": [
+          "类别不平衡: Bacterial_spot(1098) 是 Septoria_leaf_spot(343) 的 3.2 倍"
+        ]
+      }
+    },
+    "CPSFR (YOLO)": {
+      "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr",
+      "summary": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr",
+        "classes": {
+          "Bacterial_spot": {
+            "train": 39,
+            "val": 11,
+            "test": 6
+          },
+          "Fusarium_wilt": {
+            "train": 23,
+            "val": 6,
+            "test": 4
+          },
+          "Healthy": {
+            "train": 42,
+            "val": 12,
+            "test": 6
+          },
+          "Powdery_mildew": {
+            "train": 76,
+            "val": 21,
+            "test": 12
+          }
+        },
+        "total": {
+          "train": 180,
+          "val": 50,
+          "test": 28
+        },
+        "ratios": {
+          "train": 69.8,
+          "val": 19.4,
+          "test": 10.9
+        },
+        "class_balance": {
+          "balanced": false,
+          "min_class": "Fusarium_wilt",
+          "min_count": 33,
+          "max_class": "Powdery_mildew",
+          "max_count": 109,
+          "mean": 64.5,
+          "std": 27.7
+        },
+        "issues": [
+          "类别不平衡: Powdery_mildew(109) 是 Fusarium_wilt(33) 的 3.3 倍"
+        ]
+      }
+    }
+  }
+}

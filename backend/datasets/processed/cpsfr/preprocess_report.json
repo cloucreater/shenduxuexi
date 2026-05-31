@@ -1,0 +1,80 @@
+{
+  "source": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr",
+  "target_size": 640,
+  "augment": false,
+  "splits": {
+    "train": {
+      "original": 180,
+      "processed": 180,
+      "augmentation_ratio": 1.0,
+      "classes": {
+        "bacterial_spot": {
+          "original": 39,
+          "processed": 39
+        },
+        "fusarium_wilt": {
+          "original": 23,
+          "processed": 23
+        },
+        "healthy": {
+          "original": 42,
+          "processed": 42
+        },
+        "powdery_mildew": {
+          "original": 76,
+          "processed": 76
+        }
+      }
+    },
+    "val": {
+      "original": 50,
+      "processed": 50,
+      "augmentation_ratio": 1.0,
+      "classes": {
+        "bacterial_spot": {
+          "original": 11,
+          "processed": 11
+        },
+        "fusarium_wilt": {
+          "original": 6,
+          "processed": 6
+        },
+        "healthy": {
+          "original": 12,
+          "processed": 12
+        },
+        "powdery_mildew": {
+          "original": 21,
+          "processed": 21
+        }
+      }
+    },
+    "test": {
+      "original": 28,
+      "processed": 28,
+      "augmentation_ratio": 1.0,
+      "classes": {
+        "bacterial_spot": {
+          "original": 6,
+          "processed": 6
+        },
+        "fusarium_wilt": {
+          "original": 4,
+          "processed": 4
+        },
+        "healthy": {
+          "original": 6,
+          "processed": 6
+        },
+        "powdery_mildew": {
+          "original": 12,
+          "processed": 12
+        }
+      }
+    }
+  },
+  "corrupted_files": [],
+  "duplicates": [],
+  "total_processed": 258,
+  "total_original": 258
+}

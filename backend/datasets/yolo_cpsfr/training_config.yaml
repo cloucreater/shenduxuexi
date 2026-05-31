@@ -1,0 +1,33 @@
+# YOLOv8 训练配置
+# 自动生成于: 2026-05-29 20:58:08
+# 数据集: D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_cpsfr
+# 总图片数: 258
+# 类别数: 4
+
+# 数据路径
+path: D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_cpsfr
+train: train
+val: val
+test: test
+
+# 类别
+nc: 4
+names:
+  0: Bacterial_spot
+  1: Fusarium_wilt
+  2: Healthy
+  3: Powdery_mildew
+
+# 训练推荐参数
+# model: yolov8n-cls.pt
+# epochs: 100
+# batch: 8
+# imgsz: 640
+#
+# 命令行:
+# yolo classify train \
+#   data=D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_cpsfr \
+#   model=yolov8n-cls.pt \
+#   epochs=100 \
+#   batch=8 \
+#   imgsz=640

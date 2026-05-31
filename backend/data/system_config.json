@@ -1,0 +1,10 @@
+{
+  "confidence_threshold": 0.5,
+  "max_concurrent_detections": 10,
+  "log_retention_days": 30,
+  "model_version": "YOLOv11",
+  "enable_notifications": true,
+  "auto_save_results": true,
+  "detection_timeout": 60,
+  "max_file_size_mb": 50
+}

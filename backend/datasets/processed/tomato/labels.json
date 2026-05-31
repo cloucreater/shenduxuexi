@@ -1,0 +1,20 @@
+{
+  "num_classes": 6,
+  "labels": {
+    "0": "bacterial_spot",
+    "1": "early_blight",
+    "2": "healthy",
+    "3": "late_blight",
+    "4": "leaf_mold",
+    "5": "septoria_leaf_spot"
+  },
+  "labels_cn": {
+    "0": "细菌性斑点病",
+    "1": "早疫病",
+    "2": "健康",
+    "3": "晚疫病",
+    "4": "叶霉病",
+    "5": "斑枯病"
+  },
+  "generated": "2026-05-29T21:00:11.846090"
+}

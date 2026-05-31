@@ -1,10 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from datetime import datetime
 from app.api import auth, detection, dashboard, treatment, evaluation, history, knowledge, admin, captcha
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models.user import User
+from app.ml.detector import YOLODetector
+from app.ml.deep_model import deep_learning_engine
+import os
 
 Base.metadata.create_all(bind=engine)
 
@@ -48,6 +53,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Static files for uploads
+uploads_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+os.makedirs(os.path.join(uploads_dir, "avatars"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
 app.include_router(captcha.router, prefix="/api", tags=["验证码"])
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["数据看板"])
@@ -62,6 +72,54 @@ app.include_router(admin.router, prefix="/api/admin", tags=["管理员"])
 async def root():
     return {"message": "智慧农害 API 服务运行中"}
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+@app.get("/health/detailed")
+async def health_detailed():
+    """详细健康检查"""
+    checks = {"status": "healthy", "timestamp": datetime.now().isoformat(), "checks": {}}
+
+    # 数据库检查
+    try:
+        db = SessionLocal()
+        db.execute(db.bind.execute("SELECT 1"))
+        db.close()
+        checks["checks"]["database"] = {"status": "healthy"}
+    except Exception as e:
+        checks["checks"]["database"] = {"status": "unhealthy", "error": str(e)}
+        checks["status"] = "degraded"
+
+    # 模型检查
+    try:
+        detector = YOLODetector()
+        cnn_ok = detector.cnn_classifier is not None
+        yolo_ok = detector.yolo_model is not None
+        checks["checks"]["models"] = {
+            "status": "healthy" if (cnn_ok or yolo_ok) else "degraded",
+            "cnn": "loaded" if cnn_ok else "not_loaded",
+            "yolo": "loaded" if yolo_ok else "not_loaded",
+            "deep_treatment": "loaded" if deep_learning_engine.treatment_model is not None else "not_loaded",
+            "deep_evaluation": "loaded" if deep_learning_engine.evaluation_model is not None else "not_loaded",
+        }
+    except Exception as e:
+        checks["checks"]["models"] = {"status": "unhealthy", "error": str(e)}
+        checks["status"] = "degraded"
+
+    # 磁盘检查
+    try:
+        models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+        if os.path.exists(models_dir):
+            files = os.listdir(models_dir)
+            checks["checks"]["disk"] = {
+                "status": "healthy",
+                "model_count": len([f for f in files if f.endswith(('.pt', '.pth'))]),
+                "model_files": files
+            }
+        else:
+            checks["checks"]["disk"] = {"status": "degraded", "error": "models directory not found"}
+    except Exception as e:
+        checks["checks"]["disk"] = {"status": "unhealthy", "error": str(e)}
+
+    # 系统运行时间
+    checks["version"] = "1.0.0"
+    checks["uptime"] = "running"
+
+    return checks

@@ -7,6 +7,7 @@ export interface User {
   username: string
   email?: string | null
   phone?: string | null
+  avatar?: string | null
   role: 'user' | 'admin'
 }
 
@@ -16,6 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userLoaded = ref(false)
 
   const isAuthenticated = computed(() => !!token.value)
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   async function login(username: string, password: string, captcha: string) {
     console.log('[AUTH STORE] login called with:', { username, password, captcha })
@@ -80,10 +82,16 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function updatePassword(oldPassword: string, newPassword: string) {
-    await api.put('/profile/password', {
+    await api.put('/auth/password', {
       old_password: oldPassword,
       new_password: newPassword
     })
+  }
+
+  async function updateProfile(data: { email?: string; phone?: string }) {
+    const response = await api.put<User>('/auth/profile', data)
+    user.value = response.data
+    return response.data
   }
 
   return {
@@ -91,11 +99,13 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     userLoaded,
     isAuthenticated,
+    isAdmin,
     login,
     register,
     logout,
     fetchCurrentUser,
     initAuth,
-    updatePassword
+    updatePassword,
+    updateProfile
   }
 })

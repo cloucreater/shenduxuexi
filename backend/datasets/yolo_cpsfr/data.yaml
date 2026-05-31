@@ -1,0 +1,15 @@
+# YOLOv8 Classification - CPSFR Pepper Disease Dataset
+# Generated: 2026-05-29 20:57:54
+
+path: D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_cpsfr
+train: train
+val: val
+test: test
+
+nc: 4
+
+names:
+  0: Fusarium_wilt
+  1: Powdery_mildew
+  2: Bacterial_spot
+  3: Healthy

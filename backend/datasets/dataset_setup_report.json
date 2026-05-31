@@ -1,0 +1,203 @@
+{
+  "timestamp": "2026-05-29T20:57:54.320334",
+  "tomato": {
+    "exists": true,
+    "base_dir": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\real_datasets\\tomato leaf",
+    "train": {
+      "exists": true,
+      "count": 3831,
+      "classes": {
+        "Tomato___Bacterial_spot": 768,
+        "Tomato___Early_blight": 762,
+        "Tomato___healthy": 765,
+        "Tomato___Late_blight": 763,
+        "Tomato___Leaf_Mold": 760,
+        "Tomato___Septoria_leaf_spot": 13
+      }
+    },
+    "val": {
+      "exists": true,
+      "count": 981,
+      "classes": {
+        "Tomato___Bacterial_spot": 164,
+        "Tomato___Early_blight": 163,
+        "Tomato___healthy": 164,
+        "Tomato___Late_blight": 163,
+        "Tomato___Leaf_Mold": 163,
+        "Tomato___Septoria_leaf_spot": 164
+      }
+    },
+    "test": {
+      "exists": true,
+      "count": 990,
+      "classes": {
+        "Tomato___Bacterial_spot": 166,
+        "Tomato___Early_blight": 164,
+        "Tomato___healthy": 165,
+        "Tomato___Late_blight": 165,
+        "Tomato___Leaf_Mold": 164,
+        "Tomato___Septoria_leaf_spot": 166
+      }
+    }
+  },
+  "cpsfr": {
+    "exists": true,
+    "datasets": {
+      "CPSFR_FUSAOX_fusarium": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\real_datasets\\CPSFR_FUSAOX_fusarium",
+        "count": 33,
+        "class_info": [
+          "枯萎病",
+          6
+        ]
+      },
+      "CPSFR_healthy leaves": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\real_datasets\\CPSFR_healthy leaves",
+        "count": 60,
+        "class_info": [
+          "健康",
+          5
+        ]
+      },
+      "CPSFR_LEVETA_Leveillula taurica": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\real_datasets\\CPSFR_LEVETA_Leveillula taurica",
+        "count": 109,
+        "class_info": [
+          "白粉病",
+          7
+        ]
+      },
+      "CPSFR_XANTAV_Xanthomonas campestris pv. vesicatoria": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\real_datasets\\CPSFR_XANTAV_Xanthomonas campestris pv. vesicatoria",
+        "count": 56,
+        "class_info": [
+          "细菌性斑点病",
+          0
+        ]
+      }
+    },
+    "total": 258
+  },
+  "yolo_tomato": {
+    "status": "complete",
+    "classes": [
+      "Bacterial_spot",
+      "Early_blight",
+      "Late_blight",
+      "Leaf_Mold",
+      "Septoria_leaf_spot",
+      "Healthy"
+    ],
+    "splits": {
+      "train": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset\\train",
+        "total": 3831,
+        "classes": {
+          "Bacterial_spot": 768,
+          "Early_blight": 762,
+          "Healthy": 765,
+          "Late_blight": 763,
+          "Leaf_Mold": 760,
+          "Septoria_leaf_spot": 13
+        }
+      },
+      "val": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset\\val",
+        "total": 981,
+        "classes": {
+          "Bacterial_spot": 164,
+          "Early_blight": 163,
+          "Healthy": 164,
+          "Late_blight": 163,
+          "Leaf_Mold": 163,
+          "Septoria_leaf_spot": 164
+        }
+      },
+      "test": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset\\test",
+        "total": 990,
+        "classes": {
+          "Bacterial_spot": 166,
+          "Early_blight": 164,
+          "Healthy": 165,
+          "Late_blight": 165,
+          "Leaf_Mold": 164,
+          "Septoria_leaf_spot": 166
+        }
+      }
+    },
+    "yaml_path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_dataset\\data.yaml",
+    "classes_cn": [
+      "细菌性斑点病",
+      "早疫病",
+      "晚疫病",
+      "叶霉病",
+      "斑枯病",
+      "健康"
+    ],
+    "nc": 6
+  },
+  "yolo_cpsfr": {
+    "status": "complete",
+    "classes": {
+      "Fusarium_wilt": {
+        "total": 33,
+        "train": 23,
+        "val": 6,
+        "test": 4
+      },
+      "Powdery_mildew": {
+        "total": 109,
+        "train": 76,
+        "val": 21,
+        "test": 12
+      },
+      "Bacterial_spot": {
+        "total": 56,
+        "train": 39,
+        "val": 11,
+        "test": 6
+      },
+      "Healthy": {
+        "total": 60,
+        "train": 42,
+        "val": 12,
+        "test": 6
+      }
+    },
+    "splits": {
+      "train": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr\\train",
+        "total": 180,
+        "classes": {
+          "Fusarium_wilt": 23,
+          "Powdery_mildew": 76,
+          "Bacterial_spot": 39,
+          "Healthy": 42
+        }
+      },
+      "val": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr\\val",
+        "total": 50,
+        "classes": {
+          "Fusarium_wilt": 6,
+          "Powdery_mildew": 21,
+          "Bacterial_spot": 11,
+          "Healthy": 12
+        }
+      },
+      "test": {
+        "path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr\\test",
+        "total": 28,
+        "classes": {
+          "Fusarium_wilt": 4,
+          "Powdery_mildew": 12,
+          "Bacterial_spot": 6,
+          "Healthy": 6
+        }
+      }
+    },
+    "yaml_path": "D:\\DirMove\\Downloads\\shenduxuexi\\amy\\backend\\datasets\\yolo_cpsfr\\data.yaml",
+    "nc": 4
+  }
+}

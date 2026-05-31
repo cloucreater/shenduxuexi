@@ -1,0 +1,35 @@
+# YOLOv8 训练配置
+# 自动生成于: 2026-05-29 20:58:08
+# 数据集: D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_dataset
+# 总图片数: 5802
+# 类别数: 6
+
+# 数据路径
+path: D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_dataset
+train: train
+val: val
+test: test
+
+# 类别
+nc: 6
+names:
+  0: Bacterial_spot
+  1: Early_blight
+  2: Healthy
+  3: Late_blight
+  4: Leaf_Mold
+  5: Septoria_leaf_spot
+
+# 训练推荐参数
+# model: yolov8s-cls.pt
+# epochs: 50
+# batch: 16
+# imgsz: 640
+#
+# 命令行:
+# yolo classify train \
+#   data=D:\DirMove\Downloads\shenduxuexi\amy\backend\datasets\yolo_dataset \
+#   model=yolov8s-cls.pt \
+#   epochs=50 \
+#   batch=16 \
+#   imgsz=640
